@@ -2,7 +2,7 @@
   "name": "com.unityextensions.adsextensions",
   "version": "0.0.1",
   "displayName": "Ads Extensions",
-  "description": "Implemented providers: Admob(+mediation), IronSource, Applovin MAX, Cleaver Ads",
+  "description": "Implemented providers:\nAdmob(+mediation), ApplovinMAX, IronSource, Clever Ads",
   "unity": "2021.3",
   "unityRelease": "15f1",
   "documentationUrl": "https://example.com/",

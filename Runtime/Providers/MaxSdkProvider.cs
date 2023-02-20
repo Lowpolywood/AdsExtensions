@@ -1,78 +1,20 @@
-#if APPLOVIN
+#if APPLOVINMAX
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace AdsExtensions.Providers 
+namespace AdsExtensions.Providers
 {
-    public class MaxSdkProvider
+    public class MaxSdkProvider : AdProvider
     {
-        string maxSdkKey;
-        string interstitialAdUnitId;
-        string rewardedAdUnitId;
-        string rewardedInterstitialAdUnitId;
-        string bannerAdUnitId;
-        string mRecAdUnitId;
-
         public Color BannerColor;
 
-        private bool isBannerShowing;
-        private bool isMRecShowing;
-
-        public Action OnInitialize;
-        public Action<AdType, string, string> OnError;
-        public Action<AdType, string> OnLoad;
-        public Action<AdType, string> OnShow;
-        public Action<AdType, string> OnEarnReward;
-        public Action<AdType, string> OnClose;
-        public Action<AdType, string, Revenue> OnPaid;
-
-        public bool IsInitialized { get; private set; }
-
-        public enum AdType
+        public override void Initialize(bool isTest, bool consent, string apiKey, string appOpenId = null, string bannerId = null, string interstitialId = null, string rewardedId = null, string rewardedInterstitialId = null, string mRecId = null)
         {
-            Banner,
-            Interstitial,
-            Rewarded,
-            RewardedInterstitial,
-            MRec
-        }
+            base.Initialize(false, consent, apiKey, appOpenId, bannerId, interstitialId, rewardedId, rewardedInterstitialId, mRecId);
 
-        public bool IsReady(AdType type)
-        {
-            if (!initializedAdTypes.Contains(type))
-                return false;
-
-            switch (type)
-            {
-                case AdType.Interstitial:
-                    return MaxSdk.IsInterstitialReady(interstitialAdUnitId);
-                case AdType.RewardedInterstitial:
-                    return MaxSdk.IsRewardedInterstitialAdReady(rewardedInterstitialAdUnitId);
-                case AdType.Rewarded:
-                    return MaxSdk.IsRewardedAdReady(rewardedAdUnitId);
-
-                default:
-                    return true;
-            }
-        }
-
-        List<AdType> initializedAdTypes;
-        List<AdType> requestingAdTypes;
-
-        public void Initialize(string sdkKey, bool consent, string bannerId = null, string interstitialId = null, string rewardedId = null, string rewardedInterstitialId = null, string mRecId = null)
-        {
-            initializedAdTypes = new List<AdType>();
-            requestingAdTypes = new List<AdType>();
-
-            maxSdkKey = sdkKey;
-            bannerAdUnitId = bannerId;
-            interstitialAdUnitId = interstitialId;
-            rewardedAdUnitId = rewardedId;
-            rewardedInterstitialAdUnitId = rewardedInterstitialId;
-            mRecAdUnitId = mRecId;
-
+            // some
             MaxSdk.SetHasUserConsent(consent);
 
             MaxSdkCallbacks.OnSdkInitializedEvent += sdkConfiguration =>
@@ -80,68 +22,67 @@ namespace AdsExtensions.Providers
                 // AppLovin SDK is initialized, configure and start loading ads.
                 Debug.Log("MAX SDK Initialized");
 
-                if (!string.IsNullOrEmpty(bannerId))
+                if (!string.IsNullOrEmpty(AppOpenAdUnitId))
                 {
-                    MaxSdkCallbacks.Banner.OnAdLoadedEvent += (adunit, info) => OnAdLoaded(AdType.Banner, adunit);
-                    MaxSdkCallbacks.Banner.OnAdLoadFailedEvent += (adunit, error) => OnAdFailedToLoad(AdType.Banner, adunit, error);
-                    MaxSdkCallbacks.Banner.OnAdClickedEvent += (adunit, info) => OnAdClicked(AdType.Banner, adunit);
-                    MaxSdkCallbacks.Banner.OnAdRevenuePaidEvent += (adunit, info) => OnAdPaid(AdType.Banner, adunit, info);
-
-                    initializedAdTypes.Add(AdType.Banner);
+                    MaxSdkCallbacks.AppOpen.OnAdLoadedEvent += (adunit, info) => OnLoad?.Invoke(AdType.AppOpen, adunit);
+                    MaxSdkCallbacks.AppOpen.OnAdLoadFailedEvent += (adunit, error) => OnError?.Invoke(AdType.AppOpen, adunit, error.Message);
+                    MaxSdkCallbacks.AppOpen.OnAdDisplayFailedEvent += (adunit, error, info) => OnError?.Invoke(AdType.AppOpen, adunit, error.Message);
+                    MaxSdkCallbacks.AppOpen.OnAdHiddenEvent += (adunit, info) => OnClose?.Invoke(AdType.AppOpen, adunit);
+                    MaxSdkCallbacks.AppOpen.OnAdRevenuePaidEvent += (adunit, info) => OnPaid?.Invoke(AdType.AppOpen, adunit, GetRevenue(adunit, info));
+                    MaxSdkCallbacks.AppOpen.OnAdDisplayedEvent += (adunit, info) => OnShow?.Invoke(AdType.AppOpen, adunit);
+                    MaxSdkCallbacks.AppOpen.OnAdClickedEvent += (adunit, info) => OnClick?.Invoke(AdType.AppOpen, adunit);
                 }
 
-                if (!string.IsNullOrEmpty(interstitialId))
+                if (!string.IsNullOrEmpty(BannerAdUnitId))
                 {
-                    MaxSdkCallbacks.Interstitial.OnAdLoadedEvent += (adunit, info) => OnAdLoaded(AdType.Interstitial, adunit);
-                    MaxSdkCallbacks.Interstitial.OnAdLoadFailedEvent += (adunit, error) => OnAdFailedToLoad(AdType.Interstitial, adunit, error);
-                    MaxSdkCallbacks.Interstitial.OnAdDisplayFailedEvent += (adunit, error, info) => OnAdFailedToShow(AdType.Interstitial, adunit, error);
-                    MaxSdkCallbacks.Interstitial.OnAdHiddenEvent += (adunit, info) => OnAdClose(AdType.Interstitial, adunit);
-                    MaxSdkCallbacks.Interstitial.OnAdRevenuePaidEvent += (adunit, info) => OnAdPaid(AdType.Interstitial, adunit, info);
-                    MaxSdkCallbacks.Interstitial.OnAdDisplayedEvent += (adunit, info) => OnAdShow(AdType.Interstitial, adunit);
-                    MaxSdkCallbacks.Interstitial.OnAdClickedEvent += (adunit, info) => OnAdClicked(AdType.Interstitial, adunit);
-
-                    initializedAdTypes.Add(AdType.Interstitial);
+                    MaxSdkCallbacks.Banner.OnAdLoadedEvent += (adunit, info) => OnLoad?.Invoke(AdType.Banner, adunit);
+                    MaxSdkCallbacks.Banner.OnAdLoadFailedEvent += (adunit, error) => OnError?.Invoke(AdType.Banner, adunit, error.Message);
+                    MaxSdkCallbacks.Banner.OnAdClickedEvent += (adunit, info) => OnClick?.Invoke(AdType.Banner, adunit);
+                    MaxSdkCallbacks.Banner.OnAdRevenuePaidEvent += (adunit, info) => OnPaid?.Invoke(AdType.Banner, adunit, GetRevenue(adunit, info));
                 }
 
-                if (!string.IsNullOrEmpty(rewardedId))
+                if (!string.IsNullOrEmpty(InterstitialAdUnitId))
                 {
-                    MaxSdkCallbacks.Rewarded.OnAdLoadedEvent += (adunit, info) => OnAdLoaded(AdType.Rewarded, adunit);
-                    MaxSdkCallbacks.Rewarded.OnAdLoadFailedEvent += (adunit, error) => OnAdFailedToLoad(AdType.Rewarded, adunit, error);
-                    MaxSdkCallbacks.Rewarded.OnAdDisplayFailedEvent += (adunit, error, info) => OnAdFailedToShow(AdType.Rewarded, adunit, error);
-                    MaxSdkCallbacks.Rewarded.OnAdDisplayedEvent += (adunit, info) => OnAdShow(AdType.Rewarded, adunit);
-                    MaxSdkCallbacks.Rewarded.OnAdClickedEvent += (adunit, info) => OnAdClicked(AdType.Rewarded, adunit);
-                    MaxSdkCallbacks.Rewarded.OnAdHiddenEvent += (adunit, info) => OnAdClose(AdType.Rewarded, adunit);
-                    MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += (adunit, reward, info) => OnAdEarnedReward(AdType.Rewarded, adunit);
-                    MaxSdkCallbacks.Rewarded.OnAdRevenuePaidEvent += (adunit, info) => OnAdPaid(AdType.Rewarded, adunit, info);
-
-                    initializedAdTypes.Add(AdType.Rewarded);
+                    MaxSdkCallbacks.Interstitial.OnAdLoadedEvent += (adunit, info) => OnLoad?.Invoke(AdType.Interstitial, adunit);
+                    MaxSdkCallbacks.Interstitial.OnAdLoadFailedEvent += (adunit, error) => OnError?.Invoke(AdType.Interstitial, adunit, error.Message);
+                    MaxSdkCallbacks.Interstitial.OnAdDisplayFailedEvent += (adunit, error, info) => OnError?.Invoke(AdType.Interstitial, adunit, error.Message);
+                    MaxSdkCallbacks.Interstitial.OnAdHiddenEvent += (adunit, info) => OnClose?.Invoke(AdType.Interstitial, adunit);
+                    MaxSdkCallbacks.Interstitial.OnAdRevenuePaidEvent += (adunit, info) => OnPaid?.Invoke(AdType.Interstitial, adunit, GetRevenue(adunit, info));
+                    MaxSdkCallbacks.Interstitial.OnAdDisplayedEvent += (adunit, info) => OnShow?.Invoke(AdType.Interstitial, adunit);
+                    MaxSdkCallbacks.Interstitial.OnAdClickedEvent += (adunit, info) => OnClick?.Invoke(AdType.Interstitial, adunit);
                 }
 
-                if (!string.IsNullOrEmpty(rewardedInterstitialAdUnitId))
+                if (!string.IsNullOrEmpty(RewardedAdUnitId))
                 {
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdLoadedEvent += (adunit, info) => OnAdLoaded(AdType.RewardedInterstitial, adunit);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdLoadFailedEvent += (adunit, error) => OnAdFailedToLoad(AdType.RewardedInterstitial, adunit, error);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdDisplayFailedEvent += (adunit, error, info) => OnAdFailedToShow(AdType.RewardedInterstitial, adunit, error);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdDisplayedEvent += (adunit, info) => OnAdShow(AdType.RewardedInterstitial, adunit);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdClickedEvent += (adunit, info) => OnAdClicked(AdType.RewardedInterstitial, adunit);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdHiddenEvent += (adunit, info) => OnAdClose(AdType.RewardedInterstitial, adunit);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdReceivedRewardEvent += (adunit, reward, info) => OnAdEarnedReward(AdType.RewardedInterstitial, adunit);
-                    MaxSdkCallbacks.RewardedInterstitial.OnAdRevenuePaidEvent += (adunit, info) => OnAdPaid(AdType.RewardedInterstitial, adunit, info);
-
-                    initializedAdTypes.Add(AdType.RewardedInterstitial);
+                    MaxSdkCallbacks.Rewarded.OnAdLoadedEvent += (adunit, info) => OnLoad?.Invoke(AdType.Rewarded, adunit);
+                    MaxSdkCallbacks.Rewarded.OnAdLoadFailedEvent += (adunit, error) => OnError?.Invoke(AdType.Rewarded, adunit, error.Message);
+                    MaxSdkCallbacks.Rewarded.OnAdDisplayFailedEvent += (adunit, error, info) => OnError?.Invoke(AdType.Rewarded, adunit, error.Message);
+                    MaxSdkCallbacks.Rewarded.OnAdDisplayedEvent += (adunit, info) => OnShow?.Invoke(AdType.Rewarded, adunit);
+                    MaxSdkCallbacks.Rewarded.OnAdClickedEvent += (adunit, info) => OnClick?.Invoke(AdType.Rewarded, adunit);
+                    MaxSdkCallbacks.Rewarded.OnAdHiddenEvent += (adunit, info) => OnClose?.Invoke(AdType.Rewarded, adunit);
+                    MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += (adunit, reward, info) => OnEarnReward?.Invoke(AdType.Rewarded, adunit);
+                    MaxSdkCallbacks.Rewarded.OnAdRevenuePaidEvent += (adunit, info) => OnPaid?.Invoke(AdType.Rewarded, adunit, GetRevenue(adunit, info));
                 }
 
-                if (!string.IsNullOrEmpty(mRecId))
+                if (!string.IsNullOrEmpty(RewardedInterstitialAdUnitId))
                 {
-                    MaxSdkCallbacks.MRec.OnAdLoadedEvent += (adunit, info) => OnAdLoaded(AdType.MRec, adunit);
-                    MaxSdkCallbacks.MRec.OnAdLoadFailedEvent += (adunit, error) => OnAdFailedToLoad(AdType.MRec, adunit, error);
-                    MaxSdkCallbacks.MRec.OnAdClickedEvent += (adunit, info) => OnAdClicked(AdType.MRec, adunit);
-                    MaxSdkCallbacks.MRec.OnAdRevenuePaidEvent += (adunit, info) => OnAdPaid(AdType.MRec, adunit, info);
-
-                    initializedAdTypes.Add(AdType.MRec);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdLoadedEvent += (adunit, info) => OnLoad?.Invoke(AdType.RewardedInterstitial, adunit);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdLoadFailedEvent += (adunit, error) => OnError?.Invoke(AdType.RewardedInterstitial, adunit, error.Message);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdDisplayFailedEvent += (adunit, error, info) => OnError?.Invoke(AdType.RewardedInterstitial, adunit, error.Message);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdDisplayedEvent += (adunit, info) => OnShow?.Invoke(AdType.RewardedInterstitial, adunit);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdClickedEvent += (adunit, info) => OnClick?.Invoke(AdType.RewardedInterstitial, adunit);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdHiddenEvent += (adunit, info) => OnClose?.Invoke(AdType.RewardedInterstitial, adunit);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdReceivedRewardEvent += (adunit, reward, info) => OnEarnReward?.Invoke(AdType.RewardedInterstitial, adunit);
+                    MaxSdkCallbacks.RewardedInterstitial.OnAdRevenuePaidEvent += (adunit, info) => OnPaid?.Invoke(AdType.RewardedInterstitial, adunit, GetRevenue(adunit, info));
                 }
 
-                RequestAll();
+                if (!string.IsNullOrEmpty(MRecAdUnitId))
+                {
+                    MaxSdkCallbacks.MRec.OnAdLoadedEvent += (adunit, info) => OnLoad?.Invoke(AdType.MRec, adunit);
+                    MaxSdkCallbacks.MRec.OnAdLoadFailedEvent += (adunit, error) => OnError?.Invoke(AdType.MRec, adunit, error.Message);
+                    MaxSdkCallbacks.MRec.OnAdClickedEvent += (adunit, info) => OnClick?.Invoke(AdType.MRec, adunit);
+                    MaxSdkCallbacks.MRec.OnAdRevenuePaidEvent += (adunit, info) => OnPaid?.Invoke(AdType.MRec, adunit, GetRevenue(adunit, info));
+                }
 
                 // MRECs are automatically sized to 300x250.
                 //MaxSdk.CreateMRec(mRecAdUnitId, MaxSdkBase.AdViewPosition.BottomCenter);
@@ -154,10 +95,10 @@ namespace AdsExtensions.Providers
                 OnInitialize?.Invoke();
             };
 
-            MaxSdk.SetSdkKey(maxSdkKey);
+            MaxSdk.SetSdkKey(ApiKey);
             MaxSdk.InitializeSdk();
-            MaxSdk.CreateBanner(bannerAdUnitId, MaxSdkBase.BannerPosition.BottomCenter);
-            MaxSdk.SetBannerBackgroundColor(bannerAdUnitId, BannerColor);
+            MaxSdk.CreateBanner(BannerAdUnitId, MaxSdkBase.BannerPosition.BottomCenter);
+            MaxSdk.SetBannerBackgroundColor(BannerAdUnitId, BannerColor);
         }
 
         public void ShowMediationDebugger()
@@ -165,66 +106,87 @@ namespace AdsExtensions.Providers
             MaxSdk.ShowMediationDebugger();
         }
 
-        public void Request(AdType type)
+        public override bool IsReady(AdType type)
         {
-            if (!initializedAdTypes.Contains(type))
-                return;
-
-            if (requestingAdTypes.Contains(type))
-                return;
-
-            requestingAdTypes.Add(type);
+            if (!InitializedAdTypes.Contains(type))
+                return false;
 
             switch (type)
             {
+                case AdType.AppOpen:
+                    return MaxSdk.IsAppOpenAdReady(AppOpenAdUnitId);
+                case AdType.Interstitial:
+                    return MaxSdk.IsInterstitialReady(InterstitialAdUnitId);
+                case AdType.RewardedInterstitial:
+                    return MaxSdk.IsRewardedInterstitialAdReady(RewardedInterstitialAdUnitId);
+                case AdType.Rewarded:
+                    return MaxSdk.IsRewardedAdReady(RewardedAdUnitId);
+
+                default:
+                    return true;
+            }
+        }
+
+        public override void Request(AdType type)
+        {
+            if (!InitializedAdTypes.Contains(type))
+                return;
+
+            if (IsLoading(type))
+                return;
+
+            base.Request(type);
+
+            switch (type)
+            {
+                case AdType.AppOpen:
+                    MaxSdk.LoadAppOpenAd(AppOpenAdUnitId);
+                    break;
                 case AdType.Banner:
-                    MaxSdk.LoadBanner(bannerAdUnitId);
+                    MaxSdk.LoadBanner(BannerAdUnitId);
                     break;
                 case AdType.Interstitial:
-                    MaxSdk.LoadInterstitial(interstitialAdUnitId);
+                    MaxSdk.LoadInterstitial(InterstitialAdUnitId);
                     break;
                 case AdType.RewardedInterstitial:
-                    MaxSdk.LoadRewardedInterstitialAd(rewardedInterstitialAdUnitId);
+                    MaxSdk.LoadRewardedInterstitialAd(RewardedInterstitialAdUnitId);
                     break;
                 case AdType.Rewarded:
-                    MaxSdk.LoadRewardedAd(rewardedAdUnitId);
+                    MaxSdk.LoadRewardedAd(RewardedAdUnitId);
                     break;
                 case AdType.MRec:
-                    MaxSdk.LoadMRec(mRecAdUnitId);
+                    MaxSdk.LoadMRec(MRecAdUnitId);
                     break;
             }
 
         }
 
-        public void RequestAll()
+        public override void Show(AdType type)
         {
-            foreach (var t in (AdType[])Enum.GetValues(typeof(AdType)))
-                Request(t);
-        }
-
-        public void Show(AdType type)
-        {
-            if (!initializedAdTypes.Contains(type))
+            if (!InitializedAdTypes.Contains(type))
                 return;
 
             if (IsReady(type))
             {
                 switch (type)
                 {
+                    case AdType.AppOpen:
+                        MaxSdk.ShowAppOpenAd(AppOpenAdUnitId);
+                        break;
                     case AdType.Banner:
-                        MaxSdk.ShowBanner(bannerAdUnitId);
+                        MaxSdk.ShowBanner(BannerAdUnitId);
                         break;
                     case AdType.Interstitial:
-                        MaxSdk.ShowInterstitial(interstitialAdUnitId);
+                        MaxSdk.ShowInterstitial(InterstitialAdUnitId);
                         break;
                     case AdType.RewardedInterstitial:
-                        MaxSdk.ShowRewardedInterstitialAd(rewardedInterstitialAdUnitId);
+                        MaxSdk.ShowRewardedInterstitialAd(RewardedInterstitialAdUnitId);
                         break;
                     case AdType.Rewarded:
-                        MaxSdk.ShowRewardedAd(rewardedAdUnitId);
+                        MaxSdk.ShowRewardedAd(RewardedAdUnitId);
                         break;
                     case AdType.MRec:
-                        MaxSdk.ShowMRec(mRecAdUnitId);
+                        MaxSdk.ShowMRec(MRecAdUnitId);
                         break;
                 }
             }
@@ -232,116 +194,32 @@ namespace AdsExtensions.Providers
 
         public void Close(AdType type)
         {
-            if (!initializedAdTypes.Contains(type))
+            if (!InitializedAdTypes.Contains(type))
                 return;
 
             switch (type)
             {
                 case AdType.Banner:
-                    MaxSdk.HideBanner(bannerAdUnitId);
+                    MaxSdk.HideBanner(BannerAdUnitId);
                     break;
                 case AdType.MRec:
-                    MaxSdk.HideMRec(mRecAdUnitId);
+                    MaxSdk.HideMRec(MRecAdUnitId);
                     break;
             }
         }
 
-        private void OnAdLoaded(AdType type, string adUnit)
+        private Revenue GetRevenue(string adUnit, MaxSdkBase.AdInfo adInfo)
         {
-            requestingAdTypes.Remove(type);
+            var revenue = new Revenue();
 
-            Debug.Log($"OnAdLoaded {type} {adUnit}");
-            OnLoad?.Invoke(type, adUnit);
-        }
+            revenue.provider = "applovin_max";
+            revenue.adUnit = adUnit;
+            revenue.placement = adUnit;
+            revenue.value = adInfo.Revenue;
+            revenue.network = adInfo.NetworkName;
+            revenue.currencyCode = MaxSdk.GetSdkConfiguration().CountryCode;
 
-        private void OnAdFailedToLoad(AdType type, string adUnit, MaxSdk.ErrorInfo error)
-        {
-            requestingAdTypes.Remove(type);
-
-            string message = "Load Message: " + error.Message + "Code: " + error.Code;
-            Debug.LogWarning($"OnAdFailedToLoad {type} {adUnit} Code: {error.Code} Message: {error.Message} " +
-                $"MediatedNetworkErrorCode: {error.MediatedNetworkErrorCode} MediatedNetworkErrorMessage: {error.MediatedNetworkErrorMessage}");
-
-            OnError?.Invoke(type, adUnit, message);
-        }
-
-        private void OnAdFailedToShow(AdType type, string adUnit, MaxSdk.ErrorInfo error)
-        {
-            string message = "Show Message: " + error.Message + "Code: " + error.Code;
-
-            Debug.LogWarning($"OnAdFailedToShow {type} {adUnit} Code: {error.Code} Message: {error.Message} " +
-                $"MediatedNetworkErrorCode: {error.MediatedNetworkErrorCode} MediatedNetworkErrorMessage: {error.MediatedNetworkErrorMessage}");
-
-            OnError?.Invoke(type, adUnit, message);
-        }
-
-        private void OnAdShow(AdType type, string adUnit)
-        {
-            Debug.Log($"OnAdShow {type} {adUnit}");
-            OnShow?.Invoke(type, adUnit);
-        }
-
-        private void OnAdClose(AdType type, string adUnit)
-        {
-            Debug.Log($"OnAdClose {type} {adUnit}");
-            Request(type);
-            OnClose?.Invoke(type, adUnit);
-        }
-
-        private void OnAdClicked(AdType type, string adUnit)
-        {
-            Debug.Log($"OnAdClicked {type} {adUnit}");
-        }
-
-        private void OnAdEarnedReward(AdType type, string adUnit)
-        {
-            Debug.Log($"OnAdearnedReward {type} {adUnit}");
-            OnEarnReward?.Invoke(type, adUnit);
-        }
-
-        private void OnAdPaid(AdType type, string adUnit, MaxSdkBase.AdInfo adInfo)
-        {
-            Debug.Log($"OnAdPaid {type} {adUnit}");
-
-            // Ad revenue
-            double revenue = adInfo.Revenue;
-
-            // Miscellaneous data
-            string countryCode = MaxSdk.GetSdkConfiguration().CountryCode; // "US" for the United States, etc - Note: Do not confuse this with currency code which is "USD" in most cases!
-            string networkName = adInfo.NetworkName; // Display name of the network that showed the ad (e.g. "AdColony")
-            string adUnitIdentifier = adInfo.AdUnitIdentifier; // The MAX Ad Unit ID
-            string placement = adInfo.Placement; // The placement this ad's postbacks are tied to
-
-            OnPaid?.Invoke(type, adUnit, new Revenue
-            {
-                id = adUnit,
-                placement = placement,
-                type = type,
-                countryCode = countryCode,
-                value = revenue,
-                currencyCode = "USD"
-            });
-
-            //AdjustAdRevenue adjustAdRevenue = new AdjustAdRevenue(AdjustConfig.AdjustAdRevenueSourceAppLovinMAX);
-            //
-            //adjustAdRevenue.setRevenue(adInfo.Revenue, "USD");
-            //adjustAdRevenue.setAdRevenueNetwork(adInfo.NetworkName);
-            //adjustAdRevenue.setAdRevenueUnit(adInfo.AdUnitIdentifier);
-            //adjustAdRevenue.setAdRevenuePlacement(adInfo.Placement);
-            //
-            //Adjust.trackAdRevenue(adjustAdRevenue);
-        }
-
-        [Serializable]
-        public struct Revenue
-        {
-            public string id;
-            public string placement;
-            public AdType type;
-            public string countryCode;
-            public string network;
-            public double value;
-            public string currencyCode;
+            return revenue;
         }
     }
 }

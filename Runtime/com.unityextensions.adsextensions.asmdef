@@ -1,3 +1,17 @@
 {
-	"name": "com.unityextensions.adsextensions"
+    "name": "com.unityextensions.adsextensions",
+    "rootNamespace": "",
+    "references": [
+        "MaxSdk.Scripts",
+        "MaxSdk.Scripts.Editor"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }
